@@ -1,24 +1,128 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useReducer, useRef } from 'react';
+
+import "./App.css";
+import {
+  BrowserRouter,
+  Routes,
+  Route 
+} from "react-router-dom";
+
+import { Provider, useDispatch } from 'react-redux';
+import { store } from './stores/store';
+
+import Home from './pages/Home';
+import New from './pages/New';
+import Edit from './pages/Edit';
+import Diary from './pages/Diary';
+
+import { 
+  create, 
+  remove, 
+  edit,
+  init
+} from './slices/diarySlice'
+
+const reducer = (state, action) => {
+  let newState = [];
+  switch(action.type) {
+    case 'INIT': {
+      return action.data;
+    }
+    case 'CREATE': {
+      
+      newState = [action.data, ...state];
+      break;
+    }
+    case 'REMOVE': {
+      newState = state.filter((it)=>it.id !== action.targetId);
+      break;
+    }
+    case 'EDIT': {
+      newState = state.map((it) =>
+        it.id === action.data.id ? {...action.data} : it
+      );
+      break;
+    }
+    default:
+      return state;
+  }
+  localStorage.setItem('diary', JSON.stringify(newState))
+  return newState;
+}
+
 
 function App() {
+  // const [data,dispatch] = useReducer(reducer, []);
+
+  const dispatch = useDispatch();
+  const dataId = useRef(0);
+
+  useEffect(()=>{
+    const localData = localStorage.getItem('diary');
+    if(localData) {
+      const diaryList = JSON.parse(localData).sort((a,b)=>parseInt(b.id) - parseInt(a.id));
+      
+      if(diaryList.length >= 1) {
+        dataId.current = parseInt(diaryList[0].id) + 1;
+        dispatch(init({data:diaryList}));
+      }
+    }
+  },[])
+
+  
+  //CREATE 
+  const onCreate = (date, content, emotion) => {
+    dispatch(create({
+      id: dataId.current,
+      date: new Date(date).getTime(),
+      content,
+      emotion
+    }))
+
+    dataId.current += 1;
+  }
+
+  //REMOVE
+  const onRemove = (targetId) => {
+    dispatch (remove({targetId}));
+  }
+
+  //EDIT 
+  const onEdit = (targetId, date, content, emotion) => {
+    dispatch(edit({
+      data: {
+        id : targetId,
+        date: new Date(date).getTime(),
+        content,
+        emotion,
+      },
+    }))
+  }
+
+  
+
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    // <DiaryStateContext.Provider value={data}>
+    //   <DiaryDispatchContext.Provider value={{
+    //     onCreate,
+    //     onEdit,
+    //     onRemove,
+    //   }}>
+        <Provider store={store}>
+          <BrowserRouter>
+            <div className="App">
+              <Routes>
+                <Route path="/" element={<Home />} />;
+                <Route path="/new" element={<New />} />;
+                <Route path="/edit/:id" element={<Edit />} />;
+                <Route path="/diary/:id" element={<Diary />} />;
+              </Routes>
+            </div>
+          </BrowserRouter>
+        </Provider>
+    //   </DiaryDispatchContext.Provider>
+    // </DiaryStateContext.Provider>
   );
 }
 
